@@ -51,6 +51,7 @@ export function SchoolsPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [editingSchoolId, setEditingSchoolId] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [form, setForm] = useState<UpsertSchoolPayload>(createSchoolPayload());
   const [editForm, setEditForm] = useState<UpsertSchoolPayload>(createSchoolPayload());
 
@@ -211,6 +212,41 @@ export function SchoolsPage() {
     }
   };
 
+  const handleDeleteAllSchools = async () => {
+    const confirmed = window.confirm(
+      "Remove all schools? This will delete every school record through the admin API.",
+    );
+    if (!confirmed) return;
+
+    setIsDeletingAll(true);
+    setError("");
+    setNotice("");
+
+    try {
+      let deletedCount = 0;
+
+      while (true) {
+        const result = await getSchools({ page: 1, pageSize: 100, search: "" });
+        if (!result.items.length) break;
+
+        for (const school of result.items) {
+          const id = school.id || school._id;
+          if (!id) continue;
+          await deleteSchool(id);
+          deletedCount += 1;
+        }
+      }
+
+      setNotice(`Deleted ${deletedCount} schools successfully.`);
+      setPage(1);
+      await loadSchools("", 1, pageSize);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to remove all schools"));
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
   return (
     <section className="page-shell">
       <div className="page-header page-header-actions">
@@ -235,6 +271,14 @@ export function SchoolsPage() {
             type="button"
           >
             {showCreateForm ? "Close form" : "Add school"}
+          </button>
+          <button
+            className="secondary-button danger-button"
+            disabled={isDeletingAll}
+            onClick={handleDeleteAllSchools}
+            type="button"
+          >
+            {isDeletingAll ? "Removing all..." : "Remove all schools"}
           </button>
         </div>
       </div>

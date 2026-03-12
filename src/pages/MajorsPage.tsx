@@ -29,6 +29,7 @@ export function MajorsPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [editingMajorId, setEditingMajorId] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [form, setForm] = useState<UpsertMajorPayload>(createMajorPayload());
   const [editForm, setEditForm] =
     useState<UpsertMajorPayload>(createMajorPayload());
@@ -178,6 +179,45 @@ export function MajorsPage() {
     }
   };
 
+  const handleDeleteAllMajors = async () => {
+    const confirmed = window.confirm(
+      "Remove all majors? This will delete every major record through the admin API.",
+    );
+    if (!confirmed) return;
+
+    setIsDeletingAll(true);
+    setError("");
+    setNotice("");
+
+    try {
+      let deletedCount = 0;
+
+      while (true) {
+        const result = await getMajors({ page: 1, pageSize: 100 });
+        if (!result.items.length) break;
+
+        for (const major of result.items) {
+          const id = major.id || major._id;
+          if (!id) continue;
+          await deleteMajor(id);
+          deletedCount += 1;
+        }
+      }
+
+      setNotice(`Deleted ${deletedCount} majors successfully.`);
+      setPage(1);
+      setIsLoading(true);
+      const result = await getMajors({ page: 1, pageSize });
+      setMajors(result.items);
+      setTotal(result.total);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to remove all majors"));
+    } finally {
+      setIsDeletingAll(false);
+      setIsLoading(false);
+    }
+  };
+
   return (
     <section className="page-shell">
       <div className="page-header page-header-actions">
@@ -203,6 +243,14 @@ export function MajorsPage() {
             type="button"
           >
             {showCreateForm ? "Close form" : "Add major"}
+          </button>
+          <button
+            className="secondary-button danger-button"
+            disabled={isDeletingAll}
+            onClick={handleDeleteAllMajors}
+            type="button"
+          >
+            {isDeletingAll ? "Removing all..." : "Remove all majors"}
           </button>
         </div>
       </div>
