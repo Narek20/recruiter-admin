@@ -392,6 +392,19 @@ select:disabled {
   color: #97a7bc;
 }
 
+.action-row,
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.danger-button {
+  border-color: rgba(255, 122, 122, 0.22);
+  color: #ffb1b1;
+}
+
 .pagination-bar,
 .pagination-meta,
 .pagination-controls,

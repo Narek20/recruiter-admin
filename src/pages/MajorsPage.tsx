@@ -1,8 +1,17 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createMajor, getMajors } from "../api";
+import { createMajor, deleteMajor, getMajors, updateMajor } from "../api";
 import { getErrorMessage } from "../lib/getErrorMessage";
 import { Major, UpsertMajorPayload } from "../types/major";
+
+function createMajorPayload(major?: Partial<Major>): UpsertMajorPayload {
+  return {
+    externalId: major?.externalId || "",
+    name: major?.name || "",
+    category: major?.category || "",
+    isActive: major?.isActive ?? true,
+  };
+}
 
 export function MajorsPage() {
   const navigate = useNavigate();
@@ -18,12 +27,11 @@ export function MajorsPage() {
   const [notice, setNotice] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [form, setForm] = useState<UpsertMajorPayload>({
-    externalId: "",
-    name: "",
-    category: "",
-    isActive: true,
-  });
+  const [editingMajorId, setEditingMajorId] = useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [form, setForm] = useState<UpsertMajorPayload>(createMajorPayload());
+  const [editForm, setEditForm] =
+    useState<UpsertMajorPayload>(createMajorPayload());
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -59,7 +67,10 @@ export function MajorsPage() {
     }, {});
   }, [majors]);
   const categoryOptions = useMemo(
-    () => Array.from(new Set(majors.map((major) => major.category).filter(Boolean))).sort(),
+    () =>
+      Array.from(
+        new Set(majors.map((major) => major.category).filter(Boolean)),
+      ).sort(),
     [majors],
   );
   const filteredMajors = useMemo(
@@ -69,7 +80,8 @@ export function MajorsPage() {
           !query ||
           major.name.toLowerCase().includes(query.toLowerCase()) ||
           (major.externalId || "").toLowerCase().includes(query.toLowerCase());
-        const matchesCategory = !selectedCategory || major.category === selectedCategory;
+        const matchesCategory =
+          !selectedCategory || major.category === selectedCategory;
         const matchesStatus =
           !selectedStatus ||
           (selectedStatus === "active" ? major.isActive : !major.isActive);
@@ -80,8 +92,13 @@ export function MajorsPage() {
   );
 
   const handleFormChange =
-    (field: keyof UpsertMajorPayload) => (event: ChangeEvent<HTMLInputElement>) => {
-      setForm((current) => ({ ...current, [field]: event.target.value }));
+    (field: keyof UpsertMajorPayload) =>
+    (
+      event: ChangeEvent<HTMLInputElement>,
+      target: "create" | "edit" = "create",
+    ) => {
+      const setter = target === "create" ? setForm : setEditForm;
+      setter((current) => ({ ...current, [field]: event.target.value }));
     };
 
   const handleCreateMajor = async (event: FormEvent) => {
@@ -94,7 +111,7 @@ export function MajorsPage() {
       await createMajor(form);
       setNotice("Major created successfully.");
       setShowCreateForm(false);
-      setForm({ externalId: "", name: "", category: "", isActive: true });
+      setForm(createMajorPayload());
       setPage(1);
       setIsLoading(true);
       const result = await getMajors({ page: 1, pageSize });
@@ -108,6 +125,59 @@ export function MajorsPage() {
     }
   };
 
+  const handleStartEdit = (major: Major) => {
+    setEditingMajorId(major.id || major._id || null);
+    setEditForm(createMajorPayload(major));
+    setShowCreateForm(false);
+    setNotice("");
+    setError("");
+  };
+
+  const handleUpdateMajor = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!editingMajorId) return;
+
+    setIsSavingEdit(true);
+    setError("");
+    setNotice("");
+
+    try {
+      await updateMajor(editingMajorId, editForm);
+      setNotice("Major updated successfully.");
+      setEditingMajorId(null);
+      setIsLoading(true);
+      const result = await getMajors({ page, pageSize });
+      setMajors(result.items);
+      setTotal(result.total);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to update major"));
+    } finally {
+      setIsSavingEdit(false);
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteMajor = async (major: Major) => {
+    const id = major.id || major._id;
+    if (!id) return;
+
+    setError("");
+    setNotice("");
+
+    try {
+      await deleteMajor(id);
+      setNotice(`${major.name} deleted successfully.`);
+      setIsLoading(true);
+      const result = await getMajors({ page, pageSize });
+      setMajors(result.items);
+      setTotal(result.total);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to delete major"));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <section className="page-shell">
       <div className="page-header page-header-actions">
@@ -115,7 +185,8 @@ export function MajorsPage() {
           <p className="page-eyebrow">Majors</p>
           <h2 className="page-title">Canonical majors list</h2>
           <p className="page-copy">
-            Standardize naming before records are linked to schools and future coach data.
+            Standardize naming before records are linked to schools and future
+            coach data.
           </p>
         </div>
         <div className="toolbar-actions">
@@ -147,22 +218,93 @@ export function MajorsPage() {
             </div>
           </div>
 
-          <form className="form-grid form-grid-three" onSubmit={handleCreateMajor}>
+          <form
+            className="form-grid form-grid-three"
+            onSubmit={handleCreateMajor}
+          >
             <label className="field">
               <span>Name</span>
               <input onChange={handleFormChange("name")} value={form.name} />
             </label>
             <label className="field">
               <span>External ID</span>
-              <input onChange={handleFormChange("externalId")} value={form.externalId || ""} />
+              <input
+                onChange={handleFormChange("externalId")}
+                value={form.externalId || ""}
+              />
             </label>
             <label className="field">
               <span>Category</span>
-              <input onChange={handleFormChange("category")} value={form.category || ""} />
+              <input
+                onChange={handleFormChange("category")}
+                value={form.category || ""}
+              />
             </label>
             <div className="field field-full">
-              <button className="primary-button" disabled={isCreating} type="submit">
+              <button
+                className="primary-button"
+                disabled={isCreating}
+                type="submit"
+              >
                 {isCreating ? "Creating..." : "Create major"}
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
+
+      {editingMajorId ? (
+        <section className="panel">
+          <div className="panel-header">
+            <div>
+              <p className="panel-eyebrow">Edit major</p>
+              <h3>Update canonical major</h3>
+            </div>
+          </div>
+
+          <form
+            className="form-grid form-grid-three"
+            onSubmit={handleUpdateMajor}
+          >
+            <label className="field">
+              <span>Name</span>
+              <input
+                onChange={(event) => handleFormChange("name")(event, "edit")}
+                value={editForm.name}
+              />
+            </label>
+            <label className="field">
+              <span>External ID</span>
+              <input
+                onChange={(event) =>
+                  handleFormChange("externalId")(event, "edit")
+                }
+                value={editForm.externalId || ""}
+              />
+            </label>
+            <label className="field">
+              <span>Category</span>
+              <input
+                onChange={(event) =>
+                  handleFormChange("category")(event, "edit")
+                }
+                value={editForm.category || ""}
+              />
+            </label>
+            <div className="field field-full action-row">
+              <button
+                className="primary-button"
+                disabled={isSavingEdit}
+                type="submit"
+              >
+                {isSavingEdit ? "Saving..." : "Save changes"}
+              </button>
+              <button
+                className="secondary-button"
+                onClick={() => setEditingMajorId(null)}
+                type="button"
+              >
+                Cancel
               </button>
             </div>
           </form>
@@ -179,7 +321,10 @@ export function MajorsPage() {
         <div className="form-grid form-grid-three">
           <label className="field">
             <span>Search</span>
-            <input onChange={(event) => setQuery(event.target.value)} value={query} />
+            <input
+              onChange={(event) => setQuery(event.target.value)}
+              value={query}
+            />
           </label>
           <label className="field">
             <span>Category</span>
@@ -197,7 +342,10 @@ export function MajorsPage() {
           </label>
           <label className="field">
             <span>Status</span>
-            <select onChange={(event) => setSelectedStatus(event.target.value)} value={selectedStatus}>
+            <select
+              onChange={(event) => setSelectedStatus(event.target.value)}
+              value={selectedStatus}
+            >
               <option value="">All statuses</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
@@ -206,35 +354,14 @@ export function MajorsPage() {
         </div>
       </section>
 
-      <div className="content-grid content-grid-two">
-        <section className="panel">
-          <div className="panel-header">
-            <div>
-              <p className="panel-eyebrow">Major families</p>
-              <h3>Coverage by category</h3>
-            </div>
-          </div>
-          <div className="stack-list">
-            {Object.entries(categoryCounts).map(([category, count]) => (
-              <article className="list-card" key={category}>
-                <div>
-                  <strong>{category}</strong>
-                  <p>Canonical records ready for import matching</p>
-                </div>
-                <span className="status-pill">{count} majors</span>
-              </article>
-            ))}
-            {!isLoading && !Object.keys(categoryCounts).length ? (
-              <div className="empty-state">No major categories available.</div>
-            ) : null}
-          </div>
-        </section>
-
+      <div className="content-grid">
         <section className="panel">
           <div className="panel-header">
             <div>
               <p className="panel-eyebrow">Major records</p>
-              <h3>{isLoading ? "Loading majors..." : `${total} majors in library`}</h3>
+              <h3>
+                {isLoading ? "Loading majors..." : `${total} majors in library`}
+              </h3>
             </div>
           </div>
           {error ? <div className="empty-state">{error}</div> : null}
@@ -246,22 +373,45 @@ export function MajorsPage() {
                   <th>External ID</th>
                   <th>Category</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredMajors.map((major) => (
                   <tr key={major.id || major._id}>
                     <td>{major.name}</td>
-                    <td>{major.externalId || major._id || "Generated later"}</td>
+                    <td>
+                      {major.externalId || major._id || "Generated later"}
+                    </td>
                     <td>{major.category || "Uncategorized"}</td>
                     <td>
                       <span
                         className={`status-pill ${
-                          major.isActive ? "status-pill-live" : "status-pill-muted"
+                          major.isActive
+                            ? "status-pill-live"
+                            : "status-pill-muted"
                         }`}
                       >
                         {major.isActive ? "Active" : "Inactive"}
                       </span>
+                    </td>
+                    <td>
+                      <div className="table-actions">
+                        <button
+                          className="secondary-button"
+                          onClick={() => handleStartEdit(major)}
+                          type="button"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="secondary-button danger-button"
+                          onClick={() => handleDeleteMajor(major)}
+                          type="button"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -272,7 +422,8 @@ export function MajorsPage() {
             <div className="pagination-bar">
               <div className="pagination-meta">
                 <span>
-                  Showing {filteredMajors.length} of {majors.length} rows on this page · total {total}
+                  Showing {filteredMajors.length} of {majors.length} rows on
+                  this page · total {total}
                 </span>
                 <label className="pagination-size">
                   <span>Rows</span>
@@ -305,7 +456,9 @@ export function MajorsPage() {
                 <button
                   className="secondary-button"
                   disabled={page >= totalPages}
-                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                  onClick={() =>
+                    setPage((current) => Math.min(totalPages, current + 1))
+                  }
                   type="button"
                 >
                   Next
@@ -313,6 +466,28 @@ export function MajorsPage() {
               </div>
             </div>
           ) : null}
+        </section>
+        <section className="panel">
+          <div className="panel-header">
+            <div>
+              <p className="panel-eyebrow">Major families</p>
+              <h3>Coverage by category</h3>
+            </div>
+          </div>
+          <div className="stack-list">
+            {Object.entries(categoryCounts).map(([category, count]) => (
+              <article className="list-card" key={category}>
+                <div>
+                  <strong>{category}</strong>
+                  <p>Canonical records ready for import matching</p>
+                </div>
+                <span className="status-pill">{count} majors</span>
+              </article>
+            ))}
+            {!isLoading && !Object.keys(categoryCounts).length ? (
+              <div className="empty-state">No major categories available.</div>
+            ) : null}
+          </div>
         </section>
       </div>
     </section>

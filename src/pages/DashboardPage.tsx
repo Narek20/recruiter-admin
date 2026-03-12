@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getImports, getMajors, getSchoolMajors, getSchools } from "../api";
+import { getMajors, getSchoolMajors, getSchools } from "../api";
 import { getErrorMessage } from "../lib/getErrorMessage";
 
 const activity = [
@@ -29,11 +29,10 @@ export function DashboardPage() {
 
     async function load() {
       try {
-        const [schools, majors, mappings, imports] = await Promise.allSettled([
+        const [schools, majors, mappings] = await Promise.allSettled([
           getSchools({ page: 1, pageSize: 1 }),
           getMajors({ page: 1, pageSize: 1 }),
           getSchoolMajors({ page: 1, pageSize: 1 }),
-          getImports({ page: 1, pageSize: 1 }),
         ]);
 
         if (!active) return;
@@ -56,8 +55,8 @@ export function DashboardPage() {
           },
           {
             label: "Imports",
-            value: imports.status === "fulfilled" ? String(imports.value.total) : "N/A",
-            note: imports.status === "fulfilled" ? "Recent jobs" : "Endpoint unavailable",
+            value: "Ready",
+            note: "Upload endpoints connected",
           },
         ]);
       } catch (err) {

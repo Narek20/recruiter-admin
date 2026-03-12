@@ -1,5 +1,4 @@
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { createSchoolMajor, getMajors, getSchoolMajors, getSchools } from "../api";
 import { getErrorMessage } from "../lib/getErrorMessage";
 import { Major } from "../types/major";
@@ -7,7 +6,6 @@ import { School } from "../types/school";
 import { SchoolMajor } from "../types/schoolMajor";
 
 export function SchoolMajorsPage() {
-  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [selectedSchoolId, setSelectedSchoolId] = useState("");
@@ -119,13 +117,6 @@ export function SchoolMajorsPage() {
           </p>
         </div>
         <div className="toolbar-actions">
-          <button
-            className="secondary-button"
-            onClick={() => navigate("/imports?entity=school_majors")}
-            type="button"
-          >
-            Import CSV
-          </button>
           <button
             className="primary-button"
             onClick={() => setShowCreateForm((current) => !current)}

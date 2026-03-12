@@ -7,9 +7,31 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { createSchool, getSchools } from "../api";
+import { createSchool, deleteSchool, getSchools, updateSchool } from "../api";
 import { getErrorMessage } from "../lib/getErrorMessage";
 import { School, UpsertSchoolPayload } from "../types/school";
+
+function createSchoolPayload(school?: Partial<School>): UpsertSchoolPayload {
+  return {
+    externalId: school?.externalId || school?.slug || "",
+    name: school?.name || "",
+    city: school?.city || "",
+    state: school?.state || "",
+    country: school?.country || "USA",
+    website: school?.website || "",
+    logoUrl: school?.logoUrl || "",
+    division: school?.division || "",
+    conference: school?.conference || "",
+    tier: school?.tier || "",
+    enrollment: school?.enrollment ?? null,
+    acceptanceRate: school?.acceptanceRate ?? null,
+    tuitionInState: school?.tuitionInState ?? null,
+    tuitionOutOfState: school?.tuitionOutOfState ?? null,
+    latitude: school?.latitude ?? null,
+    longitude: school?.longitude ?? null,
+    isActive: school?.isActive ?? true,
+  };
+}
 
 export function SchoolsPage() {
   const navigate = useNavigate();
@@ -27,25 +49,10 @@ export function SchoolsPage() {
   const [notice, setNotice] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [form, setForm] = useState<UpsertSchoolPayload>({
-    externalId: "",
-    name: "",
-    city: "",
-    state: "",
-    country: "USA",
-    website: "",
-    logoUrl: "",
-    division: "",
-    conference: "",
-    tier: "",
-    enrollment: null,
-    acceptanceRate: null,
-    tuitionInState: null,
-    tuitionOutOfState: null,
-    latitude: null,
-    longitude: null,
-    isActive: true,
-  });
+  const [editingSchoolId, setEditingSchoolId] = useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [form, setForm] = useState<UpsertSchoolPayload>(createSchoolPayload());
+  const [editForm, setEditForm] = useState<UpsertSchoolPayload>(createSchoolPayload());
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const stateOptions = useMemo(
@@ -119,9 +126,14 @@ export function SchoolsPage() {
 
   const handleFormChange =
     (field: keyof UpsertSchoolPayload) =>
-    (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    (
+      event: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+      target: "create" | "edit" = "create",
+    ) => {
       const value = event.target.value;
-      setForm((current) => ({
+      const setter = target === "create" ? setForm : setEditForm;
+
+      setter((current) => ({
         ...current,
         [field]:
           field === "enrollment" ||
@@ -145,31 +157,57 @@ export function SchoolsPage() {
       await createSchool(form);
       setNotice("School created successfully.");
       setShowCreateForm(false);
-      setForm({
-        externalId: "",
-        name: "",
-        city: "",
-        state: "",
-        country: "USA",
-        website: "",
-        logoUrl: "",
-        division: "",
-        conference: "",
-        tier: "",
-        enrollment: null,
-        acceptanceRate: null,
-        tuitionInState: null,
-        tuitionOutOfState: null,
-        latitude: null,
-        longitude: null,
-        isActive: true,
-      });
+      setForm(createSchoolPayload());
       setPage(1);
       await loadSchools(query, 1, pageSize);
     } catch (err) {
       setError(getErrorMessage(err, "Failed to create school"));
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleStartEdit = (school: School) => {
+    setEditingSchoolId(school.id || school._id || null);
+    setEditForm(createSchoolPayload(school));
+    setShowCreateForm(false);
+    setNotice("");
+    setError("");
+  };
+
+  const handleUpdateSchool = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!editingSchoolId) return;
+
+    setIsSavingEdit(true);
+    setError("");
+    setNotice("");
+
+    try {
+      await updateSchool(editingSchoolId, editForm);
+      setNotice("School updated successfully.");
+      setEditingSchoolId(null);
+      await loadSchools(query, page, pageSize);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to update school"));
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleDeleteSchool = async (school: School) => {
+    const id = school.id || school._id;
+    if (!id) return;
+
+    setError("");
+    setNotice("");
+
+    try {
+      await deleteSchool(id);
+      setNotice(`${school.name} deleted successfully.`);
+      await loadSchools(query, page, pageSize);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to delete school"));
     }
   };
 
@@ -274,6 +312,76 @@ export function SchoolsPage() {
         </section>
       ) : null}
 
+      {editingSchoolId ? (
+        <section className="panel">
+          <div className="panel-header">
+            <div>
+              <p className="panel-eyebrow">Edit school</p>
+              <h3>Update school record</h3>
+            </div>
+          </div>
+
+          <form className="form-grid form-grid-four" onSubmit={handleUpdateSchool}>
+            <label className="field">
+              <span>External ID</span>
+              <input
+                onChange={(event) => handleFormChange("externalId")(event, "edit")}
+                value={editForm.externalId}
+              />
+            </label>
+            <label className="field">
+              <span>Name</span>
+              <input onChange={(event) => handleFormChange("name")(event, "edit")} value={editForm.name} />
+            </label>
+            <label className="field">
+              <span>City</span>
+              <input onChange={(event) => handleFormChange("city")(event, "edit")} value={editForm.city} />
+            </label>
+            <label className="field">
+              <span>State</span>
+              <input onChange={(event) => handleFormChange("state")(event, "edit")} value={editForm.state} />
+            </label>
+            <label className="field">
+              <span>Website</span>
+              <input
+                onChange={(event) => handleFormChange("website")(event, "edit")}
+                value={editForm.website || ""}
+              />
+            </label>
+            <label className="field">
+              <span>Division</span>
+              <input
+                onChange={(event) => handleFormChange("division")(event, "edit")}
+                value={editForm.division || ""}
+              />
+            </label>
+            <label className="field">
+              <span>Conference</span>
+              <input
+                onChange={(event) => handleFormChange("conference")(event, "edit")}
+                value={editForm.conference || ""}
+              />
+            </label>
+            <label className="field">
+              <span>Tier</span>
+              <input onChange={(event) => handleFormChange("tier")(event, "edit")} value={editForm.tier || ""} />
+            </label>
+            <div className="field field-full action-row">
+              <button className="primary-button" disabled={isSavingEdit} type="submit">
+                {isSavingEdit ? "Saving..." : "Save changes"}
+              </button>
+              <button
+                className="secondary-button"
+                onClick={() => setEditingSchoolId(null)}
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
+
       <section className="panel filters-panel">
         <div className="panel-header">
           <div>
@@ -359,6 +467,7 @@ export function SchoolsPage() {
                 <th>Tier</th>
                 <th>Website</th>
                 <th>Coaches</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -390,6 +499,24 @@ export function SchoolsPage() {
                     )}
                   </td>
                   <td>{school.coachCount ?? 0}</td>
+                  <td>
+                    <div className="table-actions">
+                      <button
+                        className="secondary-button"
+                        onClick={() => handleStartEdit(school)}
+                        type="button"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="secondary-button danger-button"
+                        onClick={() => handleDeleteSchool(school)}
+                        type="button"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

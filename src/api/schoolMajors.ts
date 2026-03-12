@@ -32,16 +32,16 @@ export async function updateSchoolMajor(
   id: string,
   payload: UpsertSchoolMajorPayload,
 ) {
-  const { data } = await http.put<ApiItemResponse<SchoolMajor>>(
+  const { data } = await http.patch<ApiItemResponse<SchoolMajor>>(
     `/admin/school-majors/${id}`,
     payload,
   );
   return data;
 }
 
-export async function archiveSchoolMajor(id: string) {
-  const { data } = await http.patch<ApiItemResponse<SchoolMajor>>(
-    `/admin/school-majors/${id}/archive`,
+export async function deleteSchoolMajor(id: string) {
+  const { data } = await http.delete<ApiItemResponse<SchoolMajor>>(
+    `/admin/school-majors/${id}`,
   );
   return data;
 }

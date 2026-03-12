@@ -29,16 +29,16 @@ export async function createSchool(payload: UpsertSchoolPayload) {
 }
 
 export async function updateSchool(id: string, payload: UpsertSchoolPayload) {
-  const { data } = await http.put<ApiItemResponse<School>>(
+  const { data } = await http.patch<ApiItemResponse<School>>(
     `/admin/schools/${id}`,
     payload,
   );
   return data;
 }
 
-export async function archiveSchool(id: string) {
-  const { data } = await http.patch<ApiItemResponse<School>>(
-    `/admin/schools/${id}/archive`,
+export async function deleteSchool(id: string) {
+  const { data } = await http.delete<ApiItemResponse<School>>(
+    `/admin/schools/${id}`,
   );
   return data;
 }

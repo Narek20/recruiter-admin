@@ -1,16 +1,20 @@
-export type ImportEntity = "schools" | "majors" | "school_majors";
+export type ImportEntity = "schools" | "majors";
 
-export interface ImportJob {
-  id?: string;
-  _id?: string;
+export interface ImportErrorRow {
+  row: number;
+  message: string;
+}
+
+export interface ImportResult {
   entity: ImportEntity;
-  fileName: string;
-  status: "pending" | "processing" | "completed" | "failed";
-  totalRows?: number;
-  importedRows?: number;
-  failedRows?: number;
-  createdAt?: string;
-  updatedAt?: string;
+  filename: string;
+  processed: number;
+  created: number;
+  updated: number;
+  failed: number;
+  relationCreated?: number;
+  relationUpdated?: number;
+  errors: ImportErrorRow[];
 }
 
 export interface CreateImportPayload {

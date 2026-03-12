@@ -29,16 +29,16 @@ export async function createMajor(payload: UpsertMajorPayload) {
 }
 
 export async function updateMajor(id: string, payload: UpsertMajorPayload) {
-  const { data } = await http.put<ApiItemResponse<Major>>(
+  const { data } = await http.patch<ApiItemResponse<Major>>(
     `/admin/majors/${id}`,
     payload,
   );
   return data;
 }
 
-export async function archiveMajor(id: string) {
-  const { data } = await http.patch<ApiItemResponse<Major>>(
-    `/admin/majors/${id}/archive`,
+export async function deleteMajor(id: string) {
+  const { data } = await http.delete<ApiItemResponse<Major>>(
+    `/admin/majors/${id}`,
   );
   return data;
 }
