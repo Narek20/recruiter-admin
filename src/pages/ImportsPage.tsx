@@ -1,4 +1,11 @@
-import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChangeEvent,
+  FormEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useSearchParams } from "react-router-dom";
 import { createImport } from "../api";
 import { getErrorMessage } from "../lib/getErrorMessage";
@@ -23,7 +30,7 @@ const importTemplates: Record<ImportEntity, string[]> = {
     "latitude",
     "longitude",
   ],
-  majors: ["externalId", "name", "category"],
+  majors: ["externalId", "name", "category", "schoolexternalid"],
 };
 
 export function ImportsPage() {
@@ -91,7 +98,10 @@ export function ImportsPage() {
   };
 
   const handleStartImportClick = () => {
-    uploadSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    uploadSectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
     fileInputRef.current?.focus();
   };
   return (
@@ -101,14 +111,23 @@ export function ImportsPage() {
           <p className="page-eyebrow">Imports</p>
           <h2 className="page-title">CSV intake and validation</h2>
           <p className="page-copy">
-            Upload raw school, major, and relationship files, then review row-level outcomes.
+            Upload raw school, major, and relationship files, then review
+            row-level outcomes.
           </p>
         </div>
         <div className="toolbar-actions">
-          <button className="secondary-button" onClick={handleDownloadTemplate} type="button">
+          <button
+            className="secondary-button"
+            onClick={handleDownloadTemplate}
+            type="button"
+          >
             Download template
           </button>
-          <button className="primary-button" onClick={handleStartImportClick} type="button">
+          <button
+            className="primary-button"
+            onClick={handleStartImportClick}
+            type="button"
+          >
             Start import
           </button>
         </div>
@@ -148,7 +167,12 @@ export function ImportsPage() {
           </label>
           <label className="field field-full">
             <span>CSV file</span>
-            <input accept=".csv,text/csv" onChange={handleFileChange} ref={fileInputRef} type="file" />
+            <input
+              accept=".csv,text/csv"
+              onChange={handleFileChange}
+              ref={fileInputRef}
+              type="file"
+            />
           </label>
           {file ? (
             <div className="file-summary field-full">
@@ -173,7 +197,11 @@ export function ImportsPage() {
             </div>
           ) : null}
           <div className="field field-full">
-            <button className="primary-button" disabled={isSubmitting} type="submit">
+            <button
+              className="primary-button"
+              disabled={isSubmitting}
+              type="submit"
+            >
               {isSubmitting ? "Uploading..." : "Start import"}
             </button>
           </div>
@@ -192,7 +220,8 @@ export function ImportsPage() {
               <p className="page-eyebrow">Import result</p>
               <h3 className="page-title">{result.filename}</h3>
               <p className="page-copy">
-                {result.entity} import finished with {result.processed} processed rows.
+                {result.entity} import finished with {result.processed}{" "}
+                processed rows.
               </p>
             </div>
             <span
@@ -237,7 +266,9 @@ export function ImportsPage() {
             </div>
 
             {result.errors.length === 0 ? (
-              <div className="empty-state">No row-level errors. The import completed cleanly.</div>
+              <div className="empty-state">
+                No row-level errors. The import completed cleanly.
+              </div>
             ) : (
               <div className="table-wrap">
                 <table className="data-table">
