@@ -13,25 +13,67 @@ import { ImportEntity, ImportResult } from "../types/import";
 
 const importTemplates: Record<ImportEntity, string[]> = {
   schools: [
-    "externalId",
-    "name",
+    "school_id",
+    "unitid",
+    "school_name",
+    "school_aliases",
+    "school_website",
     "city",
     "state",
+    "zip",
     "country",
-    "logoUrl",
-    "website",
-    "division",
-    "conference",
-    "tier",
-    "enrollment",
-    "acceptanceRate",
-    "tuitionInState",
-    "tuitionOutOfState",
+    "address_full",
     "latitude",
     "longitude",
+    "enrollment_total",
+    "admissions_rate",
+    "tuition_in_state",
+    "tuition_out_of_state",
+    "school_size_bucket",
+    "selectivity_bucket",
+    "source_system",
+    "source_url",
+    "source_data_year",
+    "last_verified_at",
   ],
-  majors: ["externalId", "name", "category", "schoolexternalid"],
+  majors: [
+    "major_id",
+    "cip_code",
+    "canonical_major_name",
+    "major_category",
+    "active_status",
+    "notes",
+  ],
+  school_majors: [
+    "school_id",
+    "major_id",
+    "award_level",
+    "source_display_name",
+    "source_url",
+    "last_verified_at",
+    "match_status",
+    "notes",
+  ],
+  logos: [
+    "logo_id",
+    "entity_type",
+    "entity_id",
+    "logo_type",
+    "logo_source_page_url",
+    "logo_file_url",
+    "downloaded_filename",
+    "is_primary",
+    "rights_note",
+    "last_checked_at",
+  ],
 };
+
+const importEntityOptions: ImportEntity[] = [
+  "schools",
+  "majors",
+  "school_majors",
+  "logos",
+];
 
 export function ImportsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -48,8 +90,8 @@ export function ImportsPage() {
 
   useEffect(() => {
     const value = searchParams.get("entity");
-    if (value === "schools" || value === "majors") {
-      setEntity(value);
+    if (value && importEntityOptions.includes(value as ImportEntity)) {
+      setEntity(value as ImportEntity);
     }
   }, [searchParams]);
 
@@ -104,6 +146,7 @@ export function ImportsPage() {
     });
     fileInputRef.current?.focus();
   };
+
   return (
     <section className="page-shell">
       <div className="page-header page-header-actions">
@@ -111,7 +154,7 @@ export function ImportsPage() {
           <p className="page-eyebrow">Imports</p>
           <h2 className="page-title">CSV intake and validation</h2>
           <p className="page-copy">
-            Upload raw school, major, and relationship files, then review
+            Upload raw school, major, school-major, and logo files, then review
             row-level outcomes.
           </p>
         </div>
@@ -159,6 +202,8 @@ export function ImportsPage() {
             >
               <option value="schools">Schools</option>
               <option value="majors">Majors</option>
+              <option value="school_majors">School-Majors</option>
+              <option value="logos">Logos</option>
             </select>
           </label>
           <label className="field">
@@ -218,58 +263,77 @@ export function ImportsPage() {
           <div className="page-header">
             <div>
               <p className="page-eyebrow">Import result</p>
-              <h3 className="page-title">{result.filename}</h3>
+              <h2 className="page-title">{result.filename}</h2>
               <p className="page-copy">
-                {result.entity} import finished with {result.processed}{" "}
-                processed rows.
+                Processed {result.processed} rows with {result.failed} failures.
               </p>
             </div>
-            <span
-              className={`status-pill ${
-                result.failed > 0 ? "status-pill-warn" : "status-pill-live"
-              }`}
-            >
-              {result.failed > 0 ? "Completed with errors" : "Completed"}
-            </span>
-          </div>
-
-          <div className="stats-grid">
-            <article className="stat-card">
-              <p className="stat-label">Processed</p>
-              <strong className="stat-value">{result.processed}</strong>
-              <span className="stat-note">Rows parsed from CSV</span>
-            </article>
-            <article className="stat-card">
-              <p className="stat-label">Created</p>
-              <strong className="stat-value">{result.created}</strong>
-              <span className="stat-note">New records inserted</span>
-            </article>
-            <article className="stat-card">
-              <p className="stat-label">Updated</p>
-              <strong className="stat-value">{result.updated}</strong>
-              <span className="stat-note">Existing records changed</span>
-            </article>
-            <article className="stat-card">
-              <p className="stat-label">Failed</p>
-              <strong className="stat-value">{result.failed}</strong>
-              <span className="stat-note">Rows needing review</span>
-            </article>
           </div>
 
           <section className="panel">
-            <div className="panel-header">
-              <div>
-                <p className="panel-eyebrow">Row feedback</p>
-                <h3>Error details</h3>
-              </div>
-              <span className="status-pill">{result.errors.length} issues</span>
+            <div className="stats-grid">
+              <article className="stat-card">
+                <span className="stat-label">Created</span>
+                <strong>{result.created}</strong>
+              </article>
+              <article className="stat-card">
+                <span className="stat-label">Updated</span>
+                <strong>{result.updated}</strong>
+              </article>
+              <article className="stat-card">
+                <span className="stat-label">Failed</span>
+                <strong>{result.failed}</strong>
+              </article>
+              <article className="stat-card">
+                <span className="stat-label">Duplicates</span>
+                <strong>{result.skippedDuplicates || 0}</strong>
+              </article>
             </div>
+          </section>
 
-            {result.errors.length === 0 ? (
-              <div className="empty-state">
-                No row-level errors. The import completed cleanly.
+          {result.duplicates?.length ? (
+            <section className="panel">
+              <div className="panel-header">
+                <div>
+                  <p className="panel-eyebrow">Duplicates</p>
+                  <h3>Skipped duplicate rows</h3>
+                </div>
               </div>
-            ) : (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Row</th>
+                      <th>Matched Row</th>
+                      <th>Reason</th>
+                      <th>Identifier</th>
+                      <th>Message</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.duplicates.map((item) => (
+                      <tr key={`${item.row}-${item.matchedRow}-${item.reason}`}>
+                        <td>{item.row}</td>
+                        <td>{item.matchedRow}</td>
+                        <td>{item.reason}</td>
+                        <td>{item.identifier || "-"}</td>
+                        <td>{item.message}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
+
+          {result.errors.length ? (
+            <section className="panel">
+              <div className="panel-header">
+                <div>
+                  <p className="panel-eyebrow">Row errors</p>
+                  <h3>Review failed rows</h3>
+                </div>
+              </div>
               <div className="table-wrap">
                 <table className="data-table">
                   <thead>
@@ -281,15 +345,15 @@ export function ImportsPage() {
                   <tbody>
                     {result.errors.map((item) => (
                       <tr key={`${item.row}-${item.message}`}>
-                        <td>Row {item.row}</td>
+                        <td>{item.row}</td>
                         <td>{item.message}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            )}
-          </section>
+            </section>
+          ) : null}
         </section>
       ) : null}
     </section>

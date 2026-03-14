@@ -4,6 +4,8 @@ import { CreateImportPayload, ImportResult } from "../types/import";
 const importEndpointByEntity = {
   schools: "/admin/imports/schools",
   majors: "/admin/imports/majors",
+  school_majors: "/admin/imports/school-majors",
+  logos: "/admin/imports/logos",
 } as const;
 
 export async function createImport(payload: CreateImportPayload) {
@@ -17,6 +19,7 @@ export async function createImport(payload: CreateImportPayload) {
       headers: {
         "Content-Type": "multipart/form-data",
       },
+      timeout: 0,
     },
   );
 
