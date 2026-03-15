@@ -9,7 +9,7 @@ import {
 import { useSearchParams } from "react-router-dom";
 import { createImport } from "../api";
 import { getErrorMessage } from "../lib/getErrorMessage";
-import { ImportEntity, ImportResult } from "../types/import";
+import { ImportEntity, ImportProgress, ImportResult } from "../types/import";
 
 const importTemplates: Record<ImportEntity, string[]> = {
   schools: [
@@ -85,6 +85,7 @@ export function ImportsPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [progress, setProgress] = useState<ImportProgress | null>(null);
 
   const selectedTemplate = useMemo(() => importTemplates[entity], [entity]);
 
@@ -112,16 +113,30 @@ export function ImportsPage() {
     setError("");
     setNotice("");
     setResult(null);
+    setProgress(null);
 
     try {
-      const response = await createImport({ entity, file });
+      const response = await createImport({
+        entity,
+        file,
+        onProgress: (nextProgress) => {
+          setProgress(nextProgress);
+          if (nextProgress.totalChunks > 1) {
+            setNotice(
+              `Uploading chunk ${nextProgress.chunkIndex} of ${nextProgress.totalChunks} for ${file.name}.`,
+            );
+          }
+        },
+      });
       setNotice(`${file.name} processed successfully.`);
       setResult(response);
+      setProgress(null);
       setFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     } catch (err) {
+      setProgress(null);
       setError(getErrorMessage(err, "Failed to start import"));
     } finally {
       setIsSubmitting(false);
@@ -177,6 +192,15 @@ export function ImportsPage() {
       </div>
 
       {notice ? <div className="notice-banner">{notice}</div> : null}
+      {progress && progress.totalChunks > 1 ? (
+        <div className="callout">
+          <strong>Chunked upload in progress</strong>
+          <p>
+            Uploaded {progress.uploadedRows} of {progress.totalRows} rows across{" "}
+            {progress.chunkIndex} of {progress.totalChunks} requests.
+          </p>
+        </div>
+      ) : null}
 
       <section className="panel" ref={uploadSectionRef}>
         <div className="panel-header">

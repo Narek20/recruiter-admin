@@ -30,4 +30,13 @@ export interface ImportResult {
 export interface CreateImportPayload {
   entity: ImportEntity;
   file: File;
+  onProgress?: (progress: ImportProgress) => void;
+}
+
+export interface ImportProgress {
+  chunkIndex: number;
+  totalChunks: number;
+  rowsInChunk: number;
+  uploadedRows: number;
+  totalRows: number;
 }
